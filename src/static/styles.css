@@ -16,16 +16,50 @@ body {
 }
 
 header {
-  text-align: center;
-  padding: 20px 0;
+  padding: 20px;
   margin-bottom: 30px;
   background-color: #1a237e;
   color: white;
   border-radius: 5px;
 }
 
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
 header h1 {
   margin-bottom: 10px;
+}
+
+.teacher-panel {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.login-form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.login-inputs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.login-form input {
+  padding: 8px 10px;
+  border-radius: 4px;
+  border: 1px solid #cfd8dc;
+  min-width: 140px;
 }
 
 main {
@@ -190,6 +224,15 @@ button:hover {
 
 .hidden {
   display: none;
+}
+
+.info-message {
+  margin-bottom: 15px;
+  color: #0c5460;
+  background-color: #d1ecf1;
+  border: 1px solid #bee5eb;
+  border-radius: 4px;
+  padding: 10px;
 }
 
 footer {
