@@ -3,17 +3,38 @@ document.addEventListener("DOMContentLoaded", () => {
   const activitySelect = document.getElementById("activity");
   const signupForm = document.getElementById("signup-form");
   const messageDiv = document.getElementById("message");
+  const loginForm = document.getElementById("login-form");
+  const logoutButton = document.getElementById("logout-button");
+  const teacherStatus = document.getElementById("teacher-status");
 
-  // Function to fetch activities from API
+  function showTeacherControls(isLoggedIn) {
+    signupForm.classList.toggle("hidden", !isLoggedIn);
+    logoutButton.classList.toggle("hidden", !isLoggedIn);
+    loginForm.classList.toggle("hidden", isLoggedIn);
+    teacherStatus.textContent = isLoggedIn
+      ? "Teacher logged in. You can manage registrations."
+      : "Please log in to manage activity registrations.";
+  }
+
+  async function fetchSessionStatus() {
+    try {
+      const response = await fetch("/session");
+      const { loggedIn } = await response.json();
+      showTeacherControls(Boolean(loggedIn));
+    } catch (error) {
+      console.error("Failed to fetch session state:", error);
+      showTeacherControls(false);
+    }
+  }
+
   async function fetchActivities() {
     try {
       const response = await fetch("/activities");
       const activities = await response.json();
 
-      // Clear loading message
       activitiesList.innerHTML = "";
+      activitySelect.innerHTML = '<option value="">-- Select an activity --</option>';
 
-      // Populate activities list
       Object.entries(activities).forEach(([name, details]) => {
         const activityCard = document.createElement("div");
         activityCard.className = "activity-card";
@@ -21,17 +42,19 @@ document.addEventListener("DOMContentLoaded", () => {
         const spotsLeft =
           details.max_participants - details.participants.length;
 
-        // Create participants HTML with delete icons instead of bullet points
         const participantsHTML =
           details.participants.length > 0
             ? `<div class="participants-section">
               <h5>Participants:</h5>
               <ul class="participants-list">
                 ${details.participants
-                  .map(
-                    (email) =>
-                      `<li><span class="participant-email">${email}</span><button class="delete-btn" data-activity="${name}" data-email="${email}">❌</button></li>`
-                  )
+                  .map((email) => {
+                    const deleteButton = !loginForm.classList.contains("hidden")
+                      ? ""
+                      : `<button class="delete-btn" data-activity="${name}" data-email="${email}">❌</button>`;
+
+                    return `<li><span class="participant-email">${email}</span>${deleteButton}</li>`;
+                  })
                   .join("")}
               </ul>
             </div>`
@@ -49,14 +72,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
         activitiesList.appendChild(activityCard);
 
-        // Add option to select dropdown
         const option = document.createElement("option");
         option.value = name;
         option.textContent = name;
         activitySelect.appendChild(option);
       });
 
-      // Add event listeners to delete buttons
       document.querySelectorAll(".delete-btn").forEach((button) => {
         button.addEventListener("click", handleUnregister);
       });
@@ -67,9 +88,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Handle unregister functionality
   async function handleUnregister(event) {
-    const button = event.target;
+    const button = event.target.closest(".delete-btn");
+    if (!button) return;
+
     const activity = button.getAttribute("data-activity");
     const email = button.getAttribute("data-email");
 
@@ -88,8 +110,6 @@ document.addEventListener("DOMContentLoaded", () => {
       if (response.ok) {
         messageDiv.textContent = result.message;
         messageDiv.className = "success";
-
-        // Refresh activities list to show updated participants
         fetchActivities();
       } else {
         messageDiv.textContent = result.detail || "An error occurred";
@@ -97,8 +117,6 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       messageDiv.classList.remove("hidden");
-
-      // Hide message after 5 seconds
       setTimeout(() => {
         messageDiv.classList.add("hidden");
       }, 5000);
@@ -110,7 +128,71 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Handle form submission
+  loginForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const username = document.getElementById("username").value;
+    const password = document.getElementById("password").value;
+
+    try {
+      const response = await fetch("/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        messageDiv.textContent = result.message;
+        messageDiv.className = "success";
+        loginForm.reset();
+        await fetchSessionStatus();
+        await fetchActivities();
+      } else {
+        messageDiv.textContent = result.detail || "Login failed";
+        messageDiv.className = "error";
+      }
+
+      messageDiv.classList.remove("hidden");
+      setTimeout(() => {
+        messageDiv.classList.add("hidden");
+      }, 5000);
+    } catch (error) {
+      messageDiv.textContent = "Failed to log in. Please try again.";
+      messageDiv.className = "error";
+      messageDiv.classList.remove("hidden");
+      console.error("Error logging in:", error);
+    }
+  });
+
+  logoutButton.addEventListener("click", async () => {
+    try {
+      const response = await fetch("/logout", { method: "POST" });
+      const result = await response.json();
+
+      if (response.ok) {
+        messageDiv.textContent = result.message;
+        messageDiv.className = "success";
+        await fetchSessionStatus();
+        await fetchActivities();
+      } else {
+        messageDiv.textContent = result.detail || "Logout failed";
+        messageDiv.className = "error";
+      }
+
+      messageDiv.classList.remove("hidden");
+      setTimeout(() => {
+        messageDiv.classList.add("hidden");
+      }, 5000);
+    } catch (error) {
+      messageDiv.textContent = "Failed to log out. Please try again.";
+      messageDiv.className = "error";
+      messageDiv.classList.remove("hidden");
+      console.error("Error logging out:", error);
+    }
+  });
+
   signupForm.addEventListener("submit", async (event) => {
     event.preventDefault();
 
@@ -133,8 +215,6 @@ document.addEventListener("DOMContentLoaded", () => {
         messageDiv.textContent = result.message;
         messageDiv.className = "success";
         signupForm.reset();
-
-        // Refresh activities list to show updated participants
         fetchActivities();
       } else {
         messageDiv.textContent = result.detail || "An error occurred";
@@ -142,8 +222,6 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       messageDiv.classList.remove("hidden");
-
-      // Hide message after 5 seconds
       setTimeout(() => {
         messageDiv.classList.add("hidden");
       }, 5000);
@@ -155,6 +233,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Initialize app
+  fetchSessionStatus();
   fetchActivities();
 });
